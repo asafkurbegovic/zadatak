@@ -152,13 +152,12 @@ app.put("/passupdate",async (req, res)=>{
   })
 })
 
-// app.get("/myquestions", (req,res)=>{
-//   base.query("select * from questions where userid =?",id,(err,result)=>{
-//     if (err){ console.log(err)}
-//     res.send({result}
-//       )
-//   })
-// })
+app.get("/myquestions", (req,res)=>{
+  base.query("select * from questions where userid =?",id,(err,result)=>{
+    if (err){ console.log(err)}
+    res.send({result})
+  })
+})
 
 
 
