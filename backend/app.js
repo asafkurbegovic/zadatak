@@ -74,9 +74,9 @@ app.post("/login", (req, res) => {
           console.log(result[0].id);
           try {
             //result[0].email
-            const token = jwt.sign('jwt', "oh how protected you are");
+            const token = jwt.sign(result[0].email, "oh how protected you are");
             console.log("token " + token);
-            res.cookie(result[0].email, token, {
+            res.cookie("jwt", token, {
               httpOnly: true,
               maxAge: 86400000,
             });
@@ -91,7 +91,6 @@ app.post("/login", (req, res) => {
       } catch {
         res.status(500).send();
       }
-    
     }
   );
   credentials.push(newCred);
@@ -123,7 +122,7 @@ app.post("/registration", async (req, res) => {
 });
 
 app.post("/profile", (req, res) => {
-  const cookie = req.cookies[mail];
+  const cookie = req.cookies["jwt"];
   if (cookie && jwt.verify(cookie, "oh how protected you are")) {
     base.query("select * from users where email =?", mail, (err, result) => {
       if (err) res.json({ errorMessage: "SOMETHING WENT WRONG" });
@@ -134,7 +133,7 @@ app.post("/profile", (req, res) => {
 
 app.get("/topquestions", (req, res) => {
   base.query(
-    "select firstname,question  from users inner join questions on users.id = questions.userid limit 20 ;select count(*) as top, question from likes inner join questions on questions.id=likes.questionid group by question order by top desc;select count(email) as count, firstname  from users inner join answers on users.id = answers.userid group by email  order by count desc",
+    "select firstname,question  from users inner join questions on users.id = questions.userid order by question desc limit 20  ;select count(*) as top, question from likes inner join questions on questions.id=likes.questionid group by question order by top desc;select count(email) as count, firstname  from users inner join answers on users.id = answers.userid group by email  order by count desc",
     (error, result) => {
       if (error) console.log(error);
       res.send(result).status(200);
@@ -142,24 +141,78 @@ app.get("/topquestions", (req, res) => {
   );
 });
 
-app.put("/passupdate",async (req, res)=>{
+app.put("/passupdate", async (req, res) => {
   const salt = await bcrypt.genSalt();
   const newHashedPass = await bcrypt.hash(req.body.newPass, salt);
 
-  base.query("update users set _password =? where email=?",[newHashedPass,req.body.email],(err,result)=>{
-    if(err) console.log(err)
-    else res.json({result,message:"succes"})
-  })
+  base.query(
+    "update users set _password =? where email=?",
+    [newHashedPass, req.body.email],
+    (err, result) => {
+      if (err) console.log(err);
+      else res.json({ result, message: "succes" });
+    }
+  );
+});
+
+app.get("/myquestions", (req, res) => {
+  const cookie = req.cookies["jwt"];
+  if (cookie && jwt.verify(cookie, "oh how protected you are")) {
+    base.query("select * from questions where userid =?", id, (err, result) => {
+      if (err) {
+        console.log(err);
+      }
+      res.send({ result, message: "positive" });
+    });
+  } else res.json({ message: "negative" });
+});
+
+app.post("/ask", (req, res) => {
+  const question = req.body.question;
+  console.log(question);
+  base.query(
+    "insert into questions(userid, question) values(?,?)",
+    [id, question],
+    (error, result) => {
+      if (error) console.log(error);
+      else res.send({ message: "succes", result });
+    }
+  );
+});
+
+app.get("/all", (req, res) => {
+  let bigData 
+  const cookie = req.cookies["jwt"];
+  if (cookie && jwt.verify(cookie, "oh how protected you are")){
+    bigData = "succes"
+  }
+  else bigData="negative"
+  base.query("select * from questions;select * from answers", (err, result) => {
+    if (err) console.log(err);
+    //console.log(result[1])
+    res.send({ message: "succes", result: result, bigData:bigData });
+  });
+});
+
+app.post("/answer", (req, res) => {
+  const queid=req.body.questionid
+  const answer = req.body.answer
+  
+  
+  base.query(
+    "insert into answers(userid,questionid,answer) values (?,?,?)",[id,queid,answer],
+    (err, result) => {
+      if (err) console.log(err)
+      else res.send({bigData,result,message:"succes"})
+    }
+  );
+});
+
+app.get("/all", (req, res)=>{
+  const cookie = req.cookies["jwt"];
+  if (cookie && jwt.verify(cookie, "oh how protected you are")){
+    res.send({checked:"success"})
+  }
 })
-
-app.get("/myquestions", (req,res)=>{
-  base.query("select * from questions where userid =?",id,(err,result)=>{
-    if (err){ console.log(err)}
-    res.send({result})
-  })
-})
-
-
-
 
 app.listen(5000, () => console.log("server up!!!"));
